@@ -9,7 +9,7 @@ class IssueOneTest {
     void testIssueOne() {
         try {
             Integer result = new IssueOne().invoke();
-            assertEquals(2000000, result);
+            assertEquals(2000, result);
         } catch (Exception e) {
             assertNull(e);
         }

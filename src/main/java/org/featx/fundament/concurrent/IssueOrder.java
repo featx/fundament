@@ -1,43 +1,38 @@
 package org.featx.fundament.concurrent;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.text.MessageFormat;
 
 public class IssueOrder {
 
-    private int i = 1;
+    private int i = 0;
+    private int j = 0;
+    private int k = 0;
+    private int l = 0;
 
-    private boolean enable = false;
-
-    private Integer loadValue() throws Exception {
-        Thread.sleep(1);
-        return 11;
+    public void init() {
+        i = 0;
+        j = 0;
+        k = 0;
+        l = 0;
     }
 
-    private Callable<Integer> changeValue = () -> {
-        i = loadValue();
-
-        enable = true;
-
-        return -1;
+    private Runnable one = () -> {
+        i = 1;
+        k = j;
     };
-    private Callable<Integer> check = () -> enable ? i : 0;
 
+    private Runnable two = () -> {
+        j = 1;
+        l = i;
+    };
 
-    public Integer invoke() throws Exception {
-        List<Callable<Integer>> list = new ArrayList<>();
-        list.add(changeValue);
-        list.add(check);
-        for(Future<Integer> f: Executors.newFixedThreadPool(2).invokeAll(list)) {
-            Integer r = f.get();
-            System.out.println(r);
-            if(r != -1) {
-                return r;
-            }
-        }
-        return 0;
+    public String invoke() throws Exception {
+        Thread t1 = new Thread(one);
+        Thread t2 = new Thread(two);
+        t1.start(); t2.start();
+        t1.join();  t2.join();
+        String result = MessageFormat.format("({0}, {1})", k, l);
+        System.out.println(result);
+        return result;
     }
 }

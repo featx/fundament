@@ -6,14 +6,19 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class IssueOrderTest {
+    private IssueOrder issueOrder = new IssueOrder();
+
     @Test
     void testIssueOrder() {
-        while (true)
+        String result = "";
+        while (!"(0, 0)".equals(result)){
             try {
-                Integer result = new IssueOrder().invoke();
-                assertNotEquals(1, result);
+                issueOrder.init();
+                result = issueOrder.invoke();
+                assertNotEquals("(0, 0)", result);
             } catch (Exception e) {
                 assertNull(e);
             }
+        }
     }
 }

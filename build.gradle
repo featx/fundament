@@ -6,7 +6,7 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.3.30'
 }
 
-group 'org.featx.dojo'
+group 'org.featx.fundament'
 version '1.0.0'
 
 sourceCompatibility = 1.8
