@@ -1,59 +1,67 @@
 package org.featx.fundament.concurrent;
 
-import java.io.*;
+import org.featx.fundament.IntegerHolder;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class SerializedThread extends Thread {
-    private static final int MAX_INDEX = 9;
-    private static final AtomicInteger LAST_INDEX = new AtomicInteger(1);
+    public static final int MAX_INDEX = 9;
+    private static final IntegerHolder LAST_INDEX = new IntegerHolder(1);
 
     private final OutputStream outputStream;
 
-    private int index;
+    private final int index;
 
     private boolean toWrite = true;
-
-    public void toggle() {
-        this.toWrite = !this.toWrite;
-    }
 
     public SerializedThread(int index, OutputStream outputStream) {
         this.index = index;
         this.outputStream = outputStream;
     }
 
+    private boolean notMyTurn() {
+        return index == 1 ? (LAST_INDEX.value() != MAX_INDEX) : (LAST_INDEX.value() != index - 1);
+    }
+
+    private void waitUntilMyTurnToDo(Runnable runnable) {
+        synchronized (outputStream) {
+            while (notMyTurn()) {
+                try {
+                    outputStream.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            runnable.run();
+            outputStream.notifyAll();
+        }
+    }
+
     @Override
     public void run() {
-        while(toWrite) {
-            synchronized (outputStream) {
-                while(index == 1 ? (LAST_INDEX.get() != MAX_INDEX) : (LAST_INDEX.get() != index -1)) {
-                    try {
-                        outputStream.wait();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
+        while (toWrite) {
+            waitUntilMyTurnToDo(() -> {
                 try {
                     outputStream.write(String.format("t%d ", LAST_INDEX.getAndSet(index)).getBytes());
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    toWrite = false;
                 }
-                outputStream.notifyAll();
-            }
+            });
         }
     }
 
     public static void main(String[] args) {
         List<SerializedThread> list = new ArrayList<>();
         try (FileOutputStream fileOutputStream = new FileOutputStream("file1")) {
-            for(int i = 1; i <= MAX_INDEX; i++) {
+            for (int i = 1; i <= MAX_INDEX; i++) {
                 list.add(new SerializedThread(i, fileOutputStream));
             }
             list.forEach(Thread::start);
             Thread.sleep(5000L);
-            list.forEach(SerializedThread::toggle);
         } catch (Exception e) {
             e.printStackTrace();
         }
