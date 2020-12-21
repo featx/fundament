@@ -1,12 +1,10 @@
 package org.featx.fundament.concurrent;
 
-import org.featx.fundament.IntegerHolder;
-
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
+
+import org.featx.fundament.IntegerHolder;
 
 public class SerializedThread extends Thread {
     public static final int MAX_INDEX = 9;
@@ -27,37 +25,42 @@ public class SerializedThread extends Thread {
         return index == 1 ? (LAST_INDEX.value() != MAX_INDEX) : (LAST_INDEX.value() != index - 1);
     }
 
-    private void waitUntilMyTurnToWrite(byte[] bytes) throws IOException, InterruptedException {
-        synchronized (outputStream) {
-            while (notMyTurn()) {
-                outputStream.wait();
+    private void waitUntilMyTurnToDo(Runnable runnable) {
+        // try-catch for not more code in run()
+        try {
+            // Fixed format  synchronized(lock) {while(some condition){lock.wait()} do sth... lock.notifyAll();}
+            // Both outputStream and LAST_INDEX are OK
+            synchronized (LAST_INDEX) {
+                while (notMyTurn()) {
+                    LAST_INDEX.wait();
+                }
+                runnable.run();
+                LAST_INDEX.notifyAll();
             }
-            outputStream.write(bytes);
-            outputStream.notifyAll();
+        } catch (InterruptedException interruptedException) {
+            this.interrupt();
         }
     }
 
     @Override
     public void run() {
         while (toWrite) {
-            try {
-                waitUntilMyTurnToWrite(String.format("t%d ", LAST_INDEX.getAndSet(index)).getBytes());
-            } catch (Exception e) {
-                toWrite = false;
-            }
+            waitUntilMyTurnToDo(() -> {
+                try {
+                    outputStream.write(String.format("t%d ", LAST_INDEX.getAndSet(index)).getBytes());
+                } catch (IOException e) {
+                    toWrite = false;
+                }
+            });
         }
     }
 
-    public static void main(String[] args) {
-        List<SerializedThread> list = new ArrayList<>();
+    public static void main(String[] args) throws IOException, InterruptedException {
         try (FileOutputStream fileOutputStream = new FileOutputStream("file1")) {
             for (int i = 1; i <= MAX_INDEX; i++) {
-                list.add(new SerializedThread(i, fileOutputStream));
+                new SerializedThread(i, fileOutputStream).start();
             }
-            list.forEach(Thread::start);
             Thread.sleep(5000L);
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 }
