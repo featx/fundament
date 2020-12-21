@@ -27,16 +27,12 @@ public class SerializedThread extends Thread {
         return index == 1 ? (LAST_INDEX.value() != MAX_INDEX) : (LAST_INDEX.value() != index - 1);
     }
 
-    private void waitUntilMyTurnToDo(Runnable runnable) {
+    private void waitUntilMyTurnToWrite(byte[] bytes) throws IOException, InterruptedException {
         synchronized (outputStream) {
             while (notMyTurn()) {
-                try {
-                    outputStream.wait();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                outputStream.wait();
             }
-            runnable.run();
+            outputStream.write(bytes);
             outputStream.notifyAll();
         }
     }
@@ -44,13 +40,11 @@ public class SerializedThread extends Thread {
     @Override
     public void run() {
         while (toWrite) {
-            waitUntilMyTurnToDo(() -> {
-                try {
-                    outputStream.write(String.format("t%d ", LAST_INDEX.getAndSet(index)).getBytes());
-                } catch (IOException e) {
-                    toWrite = false;
-                }
-            });
+            try {
+                waitUntilMyTurnToWrite(String.format("t%d ", LAST_INDEX.getAndSet(index)).getBytes());
+            } catch (Exception e) {
+                toWrite = false;
+            }
         }
     }
 
